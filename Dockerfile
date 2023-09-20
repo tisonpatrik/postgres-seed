@@ -11,7 +11,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /home/app
 
 # Copying the poetry dependency files to the working directory
-COPY docker-app/pyproject.toml docker-app/poetry.lock* ./
+COPY postgres-seed/pyproject.toml postgres-seed/poetry.lock* ./
 
 # Installing poetry and the project dependencies
 RUN pip install poetry
@@ -19,7 +19,7 @@ RUN poetry config virtualenvs.create false --local
 RUN poetry install --no-dev
 
 # Copying the source code to the working directory
-COPY docker-app/src ./src
+COPY postgres-seed/src ./src
 
 # Copying the shared directory into the container
 COPY ../shared /home/app/shared

@@ -1,12 +1,12 @@
 version: "3.9"
 
 services:
-  docker-app:
+  postgres-seed:
     build:
       context: ..
-      dockerfile: docker-app/Dockerfile
-    hostname: docker-app
-    container_name: docker-app
+      dockerfile: postgres-seed/Dockerfile
+    hostname: postgres-seed
+    container_name: postgres-seed
     depends_on:
       - db_postgres
     ports:
