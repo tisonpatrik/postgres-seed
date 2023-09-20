@@ -1,8 +1,9 @@
+import logging
+
 from fastapi import FastAPI
+
 from src.api.router import router
 from src.core.config import settings
-
-import logging
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,6 +17,7 @@ app = FastAPI(
 )
 
 app.include_router(router, prefix=settings.api_prefix)
+
 
 @app.get("/")
 async def root():

@@ -1,8 +1,9 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Dict
-import logging
 
 logging.basicConfig(level=logging.INFO)
+
 
 class BaseConfigSchema(ABC):
     @property

@@ -1,6 +1,5 @@
-
-coffee:
-	@printf 'Enjoy your coffee! \xE2\x98\x95'
+cheers:
+	@echo "Na zdraví! 🍺"
 
 dev:
 	@docker compose -f docker-compose.yaml up --build
@@ -10,9 +9,6 @@ run:
 
 down:
 	@docker compose -f ./docker-compose.yaml down --remove-orphans
-
-shell: run
-	@docker exec -it fastapi_service bash
 
 tests: run
 	@docker exec -it fastapi_service poetry run pytest

@@ -1,16 +1,19 @@
 import logging
 import os
-import pandas as pd
 from typing import List
-from src.db.schemas.schemas import get_raw_data_schemas
-from src.db.schemas.base_config_schema import BaseConfigSchema
-from src.data_processing.data_preprocessor import load_all_csv_files_from_directory
+
+import pandas as pd
+
 from src.data_processing.csv_helper import save_to_csv
 from src.data_processing.data_frame_helper import rename_columns_if_needed
+from src.data_processing.data_preprocessor import load_all_csv_files_from_directory
+from src.db.schemas.base_config_schema import BaseConfigSchema
+from src.db.schemas.schemas import get_raw_data_schemas
 
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class RawDataHandler:
     def __init__(self, schemas: List[BaseConfigSchema] = None):
@@ -32,7 +35,9 @@ class RawDataHandler:
         # Log any exceptions that occurred during processing
         for schema, result in zip(self.schemas, results):
             if isinstance(result, Exception):
-                logger.error(f"Error processing data for schema {schema.__class__.__name__}: {result}")
+                logger.error(
+                    f"Error processing data for schema {schema.__class__.__name__}: {result}"
+                )
 
     def _process_raw_data_schema(self, schema: BaseConfigSchema) -> None:
         # Ensure directory exists
@@ -48,9 +53,13 @@ class RawDataHandler:
             return
 
         if not self._process_and_save_dataframes(dataframes, schema):
-            logger.error(f"Failed to process and save data for schema: {schema.__class__.__name__}")
-    
-    def _process_and_save_dataframes(self, dataframes: List[pd.DataFrame], schema: BaseConfigSchema) -> bool:
+            logger.error(
+                f"Failed to process and save data for schema: {schema.__class__.__name__}"
+            )
+
+    def _process_and_save_dataframes(
+        self, dataframes: List[pd.DataFrame], schema: BaseConfigSchema
+    ) -> bool:
         """
         Concatenates and processes a list of dataframes and saves the result to a specified path.
 
@@ -63,10 +72,10 @@ class RawDataHandler:
         """
         try:
             df = pd.concat(dataframes, ignore_index=True)
-            
+
             # Drop columns that have 'Unnamed' in their name
-            df = df.drop(columns=[col for col in df.columns if 'Unnamed' in col])
-            
+            df = df.drop(columns=[col for col in df.columns if "Unnamed" in col])
+
             renamed = rename_columns_if_needed(df, schema.column_mapping)
             save_to_csv(renamed, schema.file_path)
             return True

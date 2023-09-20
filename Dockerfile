@@ -21,8 +21,5 @@ RUN poetry install --no-dev
 # Copying the source code to the working directory
 COPY postgres-seed/src ./src
 
-# Copying the shared directory into the container
-COPY ../shared /home/app/shared
-
 # Specifying the default command to run the FastAPI app with uvicorn
 CMD ["poetry", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

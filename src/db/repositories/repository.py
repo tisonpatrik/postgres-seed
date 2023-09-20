@@ -1,13 +1,15 @@
+import logging
+
+import pandas as pd
+
+from src.core.config import settings
 from src.db.repositories.data_inserter import DataInserter
 from src.db.repositories.data_loader import DataLoader
 from src.db.repositories.table_creator import TableCreator
 from src.db.repositories.table_dropper import TableDropper
-from src.core.config import settings
-
-import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class PostgresRepository:
     def __init__(self):
@@ -31,7 +33,9 @@ class PostgresRepository:
             logger.error(f"Error inserting data into {table_name}: {e}")
             raise
 
-    async def load_data_async(self, sql_template: str, parameters: dict = None) -> pd.DataFrame:
+    async def load_data_async(
+        self, sql_template: str, parameters: dict = None
+    ) -> pd.DataFrame:
         """
         Asynchronously loads data based on the provided SQL template and parameters.
 
@@ -43,7 +47,9 @@ class PostgresRepository:
         A DataFrame containing the loaded data.
         """
         try:
-            return await self.loader.fetch_data_as_dataframe_async(sql_template, parameters)
+            return await self.loader.fetch_data_as_dataframe_async(
+                sql_template, parameters
+            )
         except Exception as e:
             logger.error(f"Error loading data with SQL template {sql_template}: {e}")
             raise

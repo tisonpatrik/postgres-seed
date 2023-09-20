@@ -1,12 +1,13 @@
 import logging
+
 import psycopg2
 
 # Setting up the logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class TableDropper:
 
+class TableDropper:
     def __init__(self, database_url: str):
         self.database_url: str = database_url
 
@@ -26,7 +27,7 @@ class TableDropper:
             # Generate the SQL command to drop all tables
             sql_commands = [
                 "DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP EXECUTE 'DROP TABLE IF EXISTS ' || r.tablename || ' CASCADE'; END LOOP; END $$;",
-                "DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()) LOOP EXECUTE 'DROP INDEX IF EXISTS ' || r.indexname || ' CASCADE'; END LOOP; END $$;"
+                "DO $$ DECLARE r RECORD; BEGIN FOR r IN (SELECT indexname FROM pg_indexes WHERE schemaname = current_schema()) LOOP EXECUTE 'DROP INDEX IF EXISTS ' || r.indexname || ' CASCADE'; END LOOP; END $$;",
             ]
 
             for sql_command in sql_commands:
@@ -36,7 +37,9 @@ class TableDropper:
             conn.commit()
 
             # Log successful table and index drop
-            logger.info(f"Successfully dropped all tables and indexes from the database")
+            logger.info(
+                f"Successfully dropped all tables and indexes from the database"
+            )
 
             # Close communication with the PostgreSQL database server
             cur.close()

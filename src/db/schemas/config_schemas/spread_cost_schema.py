@@ -1,15 +1,12 @@
-from src.db.schemas.base_config_schema import BaseConfigSchema
 from typing import Dict
 
-class SpreadCostSchema(BaseConfigSchema):
+from src.db.schemas.base_config_schema import BaseConfigSchema
 
+
+class SpreadCostSchema(BaseConfigSchema):
     @property
     def column_mapping(self) -> Dict[str, str]:
-        return {
-                'Instrument': 'symbol', 
-                'SpreadCost': 'spread_cost'
-                }
-
+        return {"Instrument": "symbol", "SpreadCost": "spread_cost"}
 
     @property
     def sql_command(self) -> str:
@@ -19,11 +16,11 @@ class SpreadCostSchema(BaseConfigSchema):
                     spread_cost FLOAT
                 )
                 """
-    
+
     @property
     def table_name(self) -> str:
         return "spread_cost"
-    
+
     @property
     def origin_csv_file_path(self) -> str:
         return "/path/in/container/csvconfig/spreadcosts.csv"
