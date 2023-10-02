@@ -1,10 +1,16 @@
+"""
+This module defines the API routes for seeding the database.
+It includes a POST endpoint to fill the database tables with data from a temporary folder.
+"""
+
 from fastapi import APIRouter, status
 
 from src.api.routes.utils import execute_with_logging_async
+from src.core.config import settings
 from src.handlers.seed_db_handler import SeedDBHandler
 
 router = APIRouter()
-seed_db_handler = SeedDBHandler()
+seed_db_handler = SeedDBHandler(settings.database_url)
 
 
 @router.post("/seed_db/", status_code=status.HTTP_200_OK, name="seed_db")

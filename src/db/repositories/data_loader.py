@@ -1,3 +1,6 @@
+"""
+Module for asynchronous data loading from a database into a Pandas DataFrame.
+"""
 import logging
 
 import asyncpg
@@ -17,12 +20,31 @@ logger = logging.getLogger(__name__)
 
 
 class DataLoader:
-    def __init__(self, database_url: str):
-        self.database_url: str = database_url
+    """
+    Class responsible for loading data from a database into a Pandas DataFrame.
+    """
 
-    async def fetch_data_as_dataframe_async(
-        self, sql_template: str, parameters: dict = None
-    ) -> pd.DataFrame:
+    def __init__(self, database_url):
+        """
+        Initialize DataLoader with a database URL.
+
+        Parameters:
+            database_url (str): The database URL.
+        """
+        self.database_url = database_url
+
+    async def fetch_data_as_dataframe_async(self, sql_template, parameters):
+        """
+        Fetch data from the database using a SQL template and parameters,
+        and return it as a Pandas DataFrame.
+
+        Parameters:
+            sql_template (str): The SQL template to use for fetching data.
+            parameters (dict): The parameters to use with the SQL template.
+
+        Returns:
+            pd.DataFrame: The fetched data as a Pandas DataFrame.
+        """
         logger.info("Fetching data using provided SQL template.")
         pool = await self._create_connection_pool()
         try:
@@ -31,48 +53,45 @@ class DataLoader:
         finally:
             await pool.close()
 
-    async def _create_connection_pool(self) -> asyncpg.pool.Pool:
+    async def _create_connection_pool(self):
         try:
             logger.info("Creating connection pool.")
             return await asyncpg.create_pool(dsn=self.database_url)
-        except asyncpg.exceptions.ConnectionDoesNotExistError:
+        except asyncpg.exceptions.ConnectionDoesNotExistError as exc:
             logger.error("Failed to connect to the database.")
-            raise DatabaseConnectionError("Failed to connect to the database.")
+            raise DatabaseConnectionError("Failed to connect to the database.") from exc
 
-    async def _execute_sql(
-        self, pool: asyncpg.pool.Pool, sql_template: str, parameters: dict
-    ) -> list:
+    async def _execute_sql(self, pool, sql_template, parameters):
         async with pool.acquire() as conn:
             try:
                 logger.info("Preparing and executing SQL statement.")
                 statement = await conn.prepare(sql_template)
-
-                # Create a copy of parameters to avoid side-effects
                 params_copy = parameters.copy() if parameters else {}
                 if "TABLE" not in sql_template and "TABLE" in params_copy:
                     params_copy.pop("TABLE")
-
                 return await statement.fetch(**params_copy)
-
-            except asyncpg.exceptions.UndefinedTableError as e:
-                logger.error(f"Table or column not defined in SQL: {e}")
+            except asyncpg.exceptions.UndefinedTableError as exc:
+                logger.error("Table or column not defined in SQL: %s", exc)
                 raise TableOrColumnNotFoundError(
-                    f"Table or column not defined in SQL: {e}"
-                )
+                    f"Table or column not defined in SQL: {exc}"
+                ) from exc
+            except asyncpg.exceptions.SyntaxOrAccessError as exc:
+                logger.error("Syntax error or access violation in SQL: %s", exc)
+                raise SQLSyntaxError(
+                    f"Syntax error or access violation in SQL: {exc}"
+                ) from exc
+            except asyncpg.exceptions.DataError as exc:
+                logger.error("Parameter mismatch or data error: %s", exc)
+                raise ParameterMismatchError(
+                    f"Parameter mismatch or data error: {exc}"
+                ) from exc
+            except Exception as exc:
+                logger.error("Error executing SQL statement: %s", exc)
+                raise DatabaseInteractionError(
+                    f"Error executing SQL statement: {exc}"
+                ) from exc
 
-            except asyncpg.exceptions.SyntaxOrAccessError as e:
-                logger.error(f"Syntax error or access violation in SQL: {e}")
-                raise SQLSyntaxError(f"Syntax error or access violation in SQL: {e}")
-
-            except asyncpg.exceptions.DataError as e:
-                logger.error(f"Parameter mismatch or data error: {e}")
-                raise ParameterMismatchError(f"Parameter mismatch or data error: {e}")
-
-            except Exception as e:
-                logger.error(f"Error executing SQL statement: {e}")
-                raise DatabaseInteractionError(f"Error executing SQL statement: {e}")
-
-    def _convert_to_dataframe(self, rows: list) -> pd.DataFrame:
+    def _convert_to_dataframe(self, rows):
         logger.info("Converting fetched rows to DataFrame.")
         if not rows:
             return pd.DataFrame()

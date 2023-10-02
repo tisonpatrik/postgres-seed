@@ -1,12 +1,23 @@
+"""
+Module for configuring global settings for the application.
+This module uses Pydantic's BaseConfig for parsing and validation of configuration data.
+"""
+
 import os
 
 from dotenv import load_dotenv
 from pydantic import BaseConfig
 
+# Load environment variables from a .env file.
 load_dotenv()
 
 
 class GlobalConfig(BaseConfig):
+    """
+    Class for application-wide configuration settings.
+    Reads environment variables and provides default values.
+    """
+
     title: str = os.environ.get("TITLE", "Default Title")
     version: str = "1.0.0"
     description: str = os.environ.get("DESCRIPTION", "Default Description")
@@ -27,12 +38,10 @@ class GlobalConfig(BaseConfig):
     db_echo_log: bool = debug
 
     @property
-    def sync_database_url(self) -> str:
+    def database_url(self) -> str:
+        """Construct and return the PostgreSQL database URL."""
         return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"
 
-    @property
-    def async_database_url(self) -> str:
-        return f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"
 
-
+# Create an instance of the GlobalConfig class.
 settings = GlobalConfig()

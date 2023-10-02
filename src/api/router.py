@@ -1,3 +1,9 @@
+"""
+This module configures the API routing for the application.
+It imports and includes routers from different components of the application
+such as database, config files, raw data, and database seeding.
+"""
+
 from fastapi import APIRouter
 
 from src.api.routes.config_files_route import router as config_files_router

@@ -1,7 +1,10 @@
+"""
+This module provides functionalities for inserting data into a database asynchronously.
+"""
 import logging
+from contextlib import asynccontextmanager
 
 import asyncpg
-import pandas as pd
 
 from src.db.errors import (
     DatabaseConnectionError,
@@ -15,94 +18,56 @@ logger = logging.getLogger(__name__)
 
 
 class DataInserter:
-    def __init__(self, database_url: str):
-        self.database_url: str = database_url
+    """
+    Class for inserting data into a database table asynchronously.
+    """
 
-    async def insert_dataframe_async(self, df: pd.DataFrame, table_name: str) -> None:
-        logger.info(f"Inserting data into {table_name}.")
-        pool = await self._create_connection_pool()
+    def __init__(self, database_url):
+        """
+        Initialize the DataInserter with a database URL.
+
+        Parameters:
+            database_url (str): URL of the database to connect to.
+        """
+        self._database_url = database_url
+
+    async def insert_dataframe_async(self, data_frame, table_name) -> None:
+        """
+        Insert a Pandas DataFrame into a database table asynchronously.
+
+        Parameters:
+            data_frame (pd.DataFrame): The DataFrame to insert.
+            table_name (str): The name of the database table to insert into.
+        """
+        async with self._create_connection_pool_async() as pool:
+            await self._bulk_insert_async(pool, data_frame, table_name)
+
+    @asynccontextmanager
+    async def _create_connection_pool_async(self):
+        logger.info("Creating connection pool.")
         try:
-            await self._bulk_insert(pool, df, table_name)
+            pool = await asyncpg.create_pool(dsn=self._database_url)
+            yield pool
+        except asyncpg.exceptions.ConnectionDoesNotExistError as exc:
+            logger.error("Failed to connect to the database.")
+            raise DatabaseConnectionError("Failed to connect to the database.") from exc
         finally:
             await pool.close()
 
-    async def _create_connection_pool(self) -> asyncpg.pool.Pool:
-        try:
-            logger.info("Creating connection pool.")
-            return await asyncpg.create_pool(dsn=self.database_url)
-        except asyncpg.exceptions.ConnectionDoesNotExistError:
-            logger.error("Failed to connect to the database.")
-            raise DatabaseConnectionError("Failed to connect to the database.")
-
-    async def _bulk_insert(
-        self, pool: asyncpg.pool.Pool, df: pd.DataFrame, table_name: str
-    ) -> None:
+    async def _bulk_insert_async(self, pool, data_frame, table_name):
         async with pool.acquire() as conn:
             try:
-                await self._insert_records(conn, df, table_name)
-            except asyncpg.exceptions.UndefinedTableError as e:
-                logger.error(f"Table or column not defined in SQL: {e}")
+                await self._insert_records_async(conn, data_frame, table_name)
+            except asyncpg.exceptions.UndefinedTableError as exc:
+                logger.error("Table or column not defined in SQL: %s", exc)
                 raise TableOrColumnNotFoundError(
-                    f"Table or column not defined in SQL: {e}"
-                )
-            except asyncpg.exceptions.BadCopyFileFormatError as e:
-                logger.error(f"Error during bulk insert: {e}")
-                raise DatabaseInteractionError(f"Error during bulk insert: {e}")
-            except Exception as e:
-                logger.error(f"Error inserting data: {e}")
-                raise DatabaseInteractionError(f"Error inserting data: {e}")
+                    f"Table or column not defined in SQL: {exc}"
+                ) from exc
+            except Exception as exc:
+                logger.error("Error inserting data: %s", exc)
+                raise DatabaseInteractionError(f"Error inserting data: {exc}") from exc
 
-    async def _individual_insert(
-        self, pool: asyncpg.pool.Pool, df: pd.DataFrame, table_name: str
-    ) -> None:
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'instrument_metadata' 
-                    ORDER BY ordinal_position;
-                """
-            )
-            db_columns = [row["column_name"] for row in rows]
-            print(db_columns)
-
-            columns = df.columns.tolist()
-            print(columns)
-            for idx, row in df.iterrows():
-                try:
-                    print(row)
-                    await conn.copy_records_to_table(
-                        table_name, records=[row.tolist()], columns=columns
-                    )
-                except Exception as e:
-                    # If there's an error with the entire row, attempt to insert each column value individually
-                    # to identify the problematic column
-                    for col, value in row.items():
-                        try:
-                            await conn.copy_records_to_table(
-                                table_name, records=[[value]], columns=[col]
-                            )
-                        except Exception as column_error:
-                            logger.error(
-                                f"Error inserting Row {idx + 1}, Column '{col}' with value '{value}': {column_error}"
-                            )
-                            raise DatabaseInteractionError(
-                                f"Error inserting Row {idx + 1}, Column '{col}' with value '{value}': {column_error}"
-                            )
-                    logger.error(f"Error inserting row {idx + 1}: {e}")
-                    raise DatabaseInteractionError(
-                        f"Error inserting row {idx + 1}: {e}"
-                    )
-
-    async def _insert_records(
-        self, conn: asyncpg.connection.Connection, df: pd.DataFrame, table_name: str
-    ) -> None:
-        # Convert DataFrame to a list of records
-        records = df.values.tolist()
-
-        # Define columns for the DataFrame
-        columns = df.columns.tolist()
-
-        # Insert data into the table
+    async def _insert_records_async(self, conn, data_frame, table_name):
+        records = data_frame.values.tolist()
+        columns = data_frame.columns.tolist()
         await conn.copy_records_to_table(table_name, records=records, columns=columns)

@@ -1,3 +1,8 @@
+"""
+This module defines the API route for handling configuration files.
+It includes a POST endpoint for parsing files and storing them in a temporary location.
+"""
+
 from fastapi import APIRouter, status
 
 from src.api.routes.utils import execute_with_logging

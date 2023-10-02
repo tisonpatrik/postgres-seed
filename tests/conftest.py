@@ -1,91 +1,84 @@
-import asyncio
-from typing import AsyncGenerator, Callable, Generator
+# conftest.py
 
+import pandas as pd
 import pytest
-import pytest_asyncio
-from fastapi import FastAPI
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from src.core.config import settings
-from src.db.schemas.transactions_schema import TransactionCreate
-
-test_db = (
-    f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}"
-    f"@{settings.postgres_server}:{settings.postgres_port}/{settings.postgres_db_tests}"
-)
-
-engine = create_async_engine(
-    test_db,
-    echo=settings.db_echo_log,
-    future=True,
-)
-
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest_asyncio.fixture(scope="session")
-def event_loop(request) -> Generator:
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Fixture to mock a DataFrame similar to AEX.csv
+@pytest.fixture
+def mock_dataframe():
+    data = {
+        "DATETIME": ["2009-08-18 23:00:00", "2009-08-19 23:00:00"],
+        "price": [89.57, 89.27],
+    }
+    return pd.DataFrame(data)
 
 
-@pytest_asyncio.fixture()
-async def db_session() -> AsyncSession:
-    async with engine.begin() as connection:
-        await connection.run_sync(SQLModel.metadata.drop_all)
-        await connection.run_sync(SQLModel.metadata.create_all)
-        async with async_session(bind=connection) as session:
-            yield session
-            await session.flush()
-            await session.rollback()
+# Fixture to mock a DataFrame with empty values
+@pytest.fixture
+def mock_dataframe_with_empty_values():
+    data = {"column1": [1, 2, None, 4], "column2": [None, 2, 3, 4]}
+    return pd.DataFrame(data)
 
 
-@pytest.fixture()
-def override_get_db(db_session: AsyncSession) -> Callable:
-    async def _override_get_db():
-        yield db_session
-
-    return _override_get_db
-
-
-@pytest.fixture()
-def app(override_get_db: Callable) -> FastAPI:
-    from src.api.dependencies.repositories import get_db
-    from src.main import app
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    return app
+# Fixture to mock a DataFrame suitable for add_symbol_by_file_name
+@pytest.fixture
+def mock_dataframe_for_symbol():
+    data = {"column1": [1, 2, 3], "column2": [4, 5, 6]}
+    return pd.DataFrame(data)
 
 
-@pytest_asyncio.fixture()
-async def async_client(app: FastAPI) -> AsyncGenerator:
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
+# Fixture to mock a DataFrame suitable for convert_datetime_to_unixtime
+@pytest.fixture
+def mock_dataframe_for_datetime():
+    data = {"unix_date_time": ["2022-01-01 00:00:00", "2022-01-02 00:00:00"]}
+    return pd.DataFrame(data)
 
 
-@pytest.fixture()
-def create_transaction():
-    def _create_transaction(
-        amount: int = 10,
-        description: str = "Text description",
-    ):
-        return TransactionCreate(amount=amount, description=description)
+# Mock DataFrame for successful aggregation
+@pytest.fixture
+def mock_dataframe_for_aggregation_success():
+    data = {
+        "unix_date_time": [
+            "2022-01-01 01:00:00",
+            "2022-01-01 02:00:00",
+            "2022-01-02 01:00:00",
+        ],
+        "price": [1.0, 2.0, 3.0],
+    }
+    return pd.DataFrame(data)
 
-    return _create_transaction
+
+@pytest.fixture
+def expected_dataframe_for_aggregation_success():
+    data = {
+        "unix_date_time": pd.to_datetime(
+            ["2022-01-01", "2022-01-02"]
+        ),  # Convert to datetime
+        "price": [1.5, 3.0],
+    }
+    return pd.DataFrame(data)
 
 
-@pytest.fixture()
-def create_transactions(create_transaction):
-    def _create_transactions(_qty: int = 1):
-        return [
-            create_transaction(amount=i, description=f"Transaction number {i}")
-            for i in range(_qty)
-        ]
+# Mock DataFrame for failed aggregation (non-numeric 'price')
+@pytest.fixture
+def mock_dataframe_for_aggregation_fail():
+    data = {
+        "unix_date_time": ["2022-01-01 01:00:00", "2022-01-01 02:00:00"],
+        "price": ["not_a_number", "another_non_number"],
+    }
+    return pd.DataFrame(data)
 
-    return _create_transactions
+
+# Mock DataFrame for successful datetime conversion
+@pytest.fixture
+def mock_dataframe_for_datetime_success():
+    data = {"datetime_column": ["2022-01-01", "2022-01-02"]}
+    return pd.DataFrame(data)
+
+
+# Mock DataFrame for failed datetime conversion
+@pytest.fixture
+def mock_dataframe_for_datetime_fail():
+    data = {"datetime_column": ["not_a_datetime", "another_not_datetime"]}
+    return pd.DataFrame(data)
